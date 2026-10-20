@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Activity, AlertTriangle, ArrowDownToLine, BarChart3, Boxes, CheckCircle2, FileSpreadsheet, LayoutDashboard, Printer, RefreshCw, ShieldCheck, Upload, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { sampleSales } from "./data";
@@ -94,7 +95,7 @@ export default function App() {
   </div>;
 }
 
-function Kpi({ title, value, note, icon }: { title: string; value: string; note: string; icon: React.ReactNode }) {
+function Kpi({ title, value, note, icon }: { title: string; value: string; note: string; icon: ReactNode }) {
   return <article className="kpi"><div className="kpi-head"><span>{title}</span><i>{icon}</i></div><b>{value}</b><small>{note}</small></article>;
 }
 function ErrorList({ errors }: { errors: string[] }) {
