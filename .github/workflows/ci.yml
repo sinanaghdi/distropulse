@@ -27,6 +27,7 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgresql+psycopg://distropulse:distropulse-test@localhost:5432/distropulse_test
+      RUN_POSTGRES_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
