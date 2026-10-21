@@ -30,6 +30,7 @@ class Shipment(Base):
     __table_args__ = (
         CheckConstraint("quantity > 0", name="ck_shipments_quantity_positive"),
         CheckConstraint("unit_price_snapshot >= 0", name="ck_shipments_price_nonnegative"),
+        CheckConstraint("status IN ('planned', 'in_transit', 'delivered', 'cancelled')", name="ck_shipments_status_valid"),
         Index("ix_shipments_status_created_at", "status", "created_at"),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

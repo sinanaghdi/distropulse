@@ -2,19 +2,23 @@
 
 ## Implemented in this branch
 
-- SQLAlchemy models and Pydantic contracts for products and shipments.
-- Product list/create endpoints with uniqueness, input validation, search, low-stock filtering and bounded pagination.
-- Shipment creation using a conditional stock update, unique references and unit-price snapshots.
-- Shipment state transitions with terminal delivered/cancelled states; cancellation restores reserved stock once within the transaction.
-- Operational KPI endpoint for product stock status, shipment states and delivered value.
-- Alembic migration, PostgreSQL 16 Compose service, Dockerfile and updated dependencies.
-- API contract documentation and five backend tests for validation, idempotency by unique reference, insufficient stock, cancellation, status transitions and delivered value.
-- CI matrix includes PostgreSQL 16 service, backend tests, migration, frontend tests and production build.
+- SQLAlchemy product and shipment models plus Pydantic request/response contracts.
+- Product endpoints with SKU uniqueness, input validation, search, low-stock filtering and bounded pagination.
+- Shipment creation with conditional stock updates, unique references and immutable unit-price snapshots.
+- Guarded shipment transitions; cancellation restores reserved inventory within the same transaction and terminal states cannot be re-opened.
+- Operations KPI endpoint covering active products, low-stock products, shipment states and delivered value.
+- Alembic migration, PostgreSQL 16 Compose service, Dockerfile and dependencies.
+- Five backend operation tests and file-preview tests for happy path, invalid extension, duplicate headers and invalid UTF-8.
+- English README, API error messages, API contract and frontend dashboard; Persian source-column aliases remain supported for import compatibility.
+- CI configured for a PostgreSQL 16 service, backend test suite, migration, frontend tests and frontend build.
 
-## Validation state
+## Current validation evidence
 
-Changes are committed to the Phase 3 branch. This environment could not clone the repository for local execution, so the new tests are not claimed as locally passed. CI must be checked on the pull request before merge. A configured PostgreSQL service in CI is intended to exercise the operational API and migration, but no successful run is claimed until the workflow reports success.
+- GitHub Actions run 39689050456 completed with both backend and frontend jobs successful: https://github.com/sinanaghdi/distropulse/actions/runs/39689050456
+- That run installed Python dependencies, ran the backend pytest suite, ran Alembic upgrade against PostgreSQL 16, ran frontend tests, and ran the frontend production build.
+- A further consistency commit after that run adds an ORM status check and changes file-preview errors to English. The new head must receive a fresh CI run before merge.
+- Tests have not been executed in a local clone in this execution environment; no local PASS is claimed.
 
 ## Scope limitations
 
-Authentication, tenant/object permissions, upload persistence, payments, background jobs and third-party delivery carriers are not implemented. The sales preview remains in-memory and independent from the transactional operations API. No real distribution business findings are claimed.
+Authentication, tenant/object authorization, file-upload persistence, payments, background jobs and external carrier integrations are not implemented. Sales-file preview stays in memory and is independent of persisted operational records. The operational API has not been load-tested for concurrent requests against PostgreSQL; the CI migration uses PostgreSQL, while route-level tests use isolated SQLite fixtures. Do not deploy publicly or use real customer data before access control and production hardening.
