@@ -15,7 +15,7 @@ const aliases = {
 } as const;
 
 function key(value: unknown): string {
-  return String(value ?? "").trim().toLocaleLowerCase("fa-IR").replace(/[\s_\-]+/g, "");
+  return String(value ?? "").trim().toLocaleLowerCase("en-US").replace(/[\s_\-]+/g, "");
 }
 function valueOf(row: Record<string, unknown>, names: readonly string[]): unknown {
   const field = Object.keys(row).find((candidate) => names.some((name) => key(name) === key(candidate)));
@@ -26,30 +26,33 @@ function numberOf(value: unknown): number | null {
     .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
     .replace(/[٬,\s]/g, "").replace("٫", ".");
   if (!digits) return null;
-  const n = Number(digits); return Number.isFinite(n) ? n : null;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : null;
 }
 function dateOf(value: unknown): string {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   const raw = String(value ?? "").trim();
   if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) {
     const parts = raw.split("-").map(Number);
-    return String(parts[0]) + "-" + String(parts[1]).padStart(2, "0") + "-" + String(parts[2]).padStart(2, "0");
+    const result = String(parts[0]) + "-" + String(parts[1]).padStart(2, "0") + "-" + String(parts[2]).padStart(2, "0");
+    return Number.isFinite(Date.parse(result)) ? result : "";
   }
   return raw;
 }
 
 export async function readSalesFile(file: File): Promise<ImportResult> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("حجم فایل نباید بیشتر از ۵ مگابایت باشد.");
-  if (!/\.(csv|xlsx)$/i.test(file.name)) throw new Error("فقط فایل CSV یا XLSX قابل قبول است.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("File size must not exceed 5 MiB.");
+  if (!/\.(csv|xlsx)$/i.test(file.name)) throw new Error("Only CSV and XLSX files are supported.");
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) throw new Error("فایل برگه‌ی قابل خواندنی ندارد.");
+  if (!sheet) throw new Error("The workbook has no readable worksheet.");
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
-  if (!raw.length) throw new Error("در فایل ردیف داده‌ای پیدا نشد.");
+  if (!raw.length) throw new Error("No data rows were found in the file.");
   const headers = Object.keys(raw[0] ?? []);
   const rows: Sale[] = [];
   const errors: string[] = [];
   raw.forEach((source, index) => {
+    const rowNumber = index + 2;
     const date = dateOf(valueOf(source, aliases.date));
     const invoiceId = String(valueOf(source, aliases.invoice) ?? "").trim();
     const productName = String(valueOf(source, aliases.product) ?? "").trim();
@@ -58,17 +61,14 @@ export async function readSalesFile(file: File): Promise<ImportResult> {
     const unitPrice = numberOf(valueOf(source, aliases.price));
     const amount = amountValue === undefined || String(amountValue).trim() === ""
       ? (quantity !== null && unitPrice !== null ? quantity * unitPrice : null) : numberOf(amountValue);
-    if (!date || !Number.isFinite(Date.parse(date))) { errors.push("ردیف " + (index + 2) + ": تاریخ نامعتبر یا خالی است."); return; }
-    if (!invoiceId) { errors.push("ردیف " + (index + 2) + ": شناسه فاکتور مشخص نیست."); return; }
-    if (!productName) { errors.push("ردیف " + (index + 2) + ": نام محصول مشخص نیست."); return; }
-    if (quantity === null || amount === null) { errors.push("ردیف " + (index + 2) + ": تعداد یا مبلغ عددی نیست."); return; }
-    rows.push({
-      date, invoiceId, productCode: String(valueOf(source, aliases.code) ?? "").trim(),
-      productName, quantity, amount,
+    if (!date || !Number.isFinite(Date.parse(date))) { errors.push("Row " + rowNumber + ": missing or invalid date."); return; }
+    if (!invoiceId) { errors.push("Row " + rowNumber + ": invoice identifier is missing."); return; }
+    if (!productName) { errors.push("Row " + rowNumber + ": product name is missing."); return; }
+    if (quantity === null || amount === null) { errors.push("Row " + rowNumber + ": quantity or amount is not numeric."); return; }
+    rows.push({ date, invoiceId, productCode: String(valueOf(source, aliases.code) ?? "").trim(), productName, quantity, amount,
       customerId: String(valueOf(source, aliases.customerId) ?? "").trim(),
-      customerName: String(valueOf(source, aliases.customer) ?? "بدون نام").trim() || "بدون نام",
-    });
+      customerName: String(valueOf(source, aliases.customer) ?? "Unknown customer").trim() || "Unknown customer" });
   });
-  if (!rows.length) throw new Error("هیچ ردیف معتبری پیدا نشد؛ نام ستون‌ها را با فایل نمونه مقایسه کنید.");
+  if (!rows.length) throw new Error("No valid rows were found; compare the file headers with the sample CSV.");
   return { rows, errors, headers };
 }
