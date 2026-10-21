@@ -1,22 +1,24 @@
 # Phase 3 Implementation Report — DistroPulse
 
 **Repository:** https://github.com/sinanaghdi/distropulse  
-**Default branch:** main  
-**Change:** PR #1 merged to main. The operations API, English-language UI/docs, database migration and CI workflow are present.
+**Status:** PR #1 and PostgreSQL-integration PR #2 are merged to `main`.
 
 ## Implemented
-- SQLAlchemy Product and Shipment models with database constraints and Pydantic contracts.
-- Product create/list endpoints with SKU uniqueness, search, low-stock filtering and bounded pagination.
-- Shipment create/list endpoints; conditional inventory decrement, unique reference, price snapshot, guarded status transitions and cancellation inventory restoration.
-- Operational analytics for active products, low stock, shipment statuses and delivered value.
-- Alembic migration, PostgreSQL 16 Compose service, Docker build, API documentation and English dashboard.
-- Sales-file preview remains in memory; Persian input-column aliases are retained for compatible files.
+- SQLAlchemy Product and Shipment models with constraints, Pydantic request/response schemas, Alembic migration, PostgreSQL 16 Compose service and Docker build.
+- Product endpoints with SKU uniqueness, search, low-stock filtering and bounded pagination.
+- Shipment create/list/status APIs. Conditional inventory updates prevent negative stock; unique references block duplicate reservations; unit prices are snapshotted at shipment creation.
+- Guarded state transitions and cancellation returning stock in the same transaction.
+- Operational KPIs for active products, low stock, shipment states and delivered value.
+- English README, API errors/documentation and RTL-free English dashboard. Persian input column aliases remain available for compatible imported CSV/XLSX.
+- File preview remains in-memory and does not persist raw uploaded contents.
+- PostgreSQL 16 API integration tests in CI for reservations, duplicate reference, insufficient stock, cancellation restoration and delivered-value reconciliation.
 
-## Verification evidence
-- Branch head CI run: https://github.com/sinanaghdi/distropulse/actions/runs/39689248484 — successful.
-- Post-merge main CI run: https://github.com/sinanaghdi/distropulse/actions/runs/39690209441 — successful.
-- CI ran the backend pytest suite, Alembic upgrade against PostgreSQL 16, frontend tests and production build.
-- Direct local clone/test was unavailable in this execution environment. CI test route fixtures use SQLite; the PostgreSQL step verifies migration, not production-like API concurrency.
+## CI evidence
+- Pre-merge feature workflow: https://github.com/sinanaghdi/distropulse/actions/runs/39689248484 — success.
+- PostgreSQL integration workflow: https://github.com/sinanaghdi/distropulse/actions/runs/39690914225 — success; backend `pytest`: **12 passed**, with `RUN_POSTGRES_INTEGRATION=1` and a PostgreSQL 16 service. Alembic upgrade, frontend tests and frontend production build also passed.
+- Post-merge main workflow after PR #1: https://github.com/sinanaghdi/distropulse/actions/runs/39690209441 — success.
+- The dedicated PostgreSQL integration branch was merged via PR #2 to main at merge commit `9cd9326fde024a79ae858af9ca90811b49b0015a`. Branch/PR checks were green before merge.
+- A local clone/test run was not available from this execution environment; CI output is the test evidence.
 
-## Limitations / not implemented
-Authentication, seller/organization tenant isolation, object-level authorization, persistent file upload, background processing, actual payment/carrier integration, and PostgreSQL multi-request API concurrency tests are not implemented. Dashboard sample rows are synthetic. Do not deploy publicly or use real customer data until security controls and integration tests are added.
+## Limits
+Authentication, tenant/object authorization, real multi-tenant isolation, persistent sales-file imports, background jobs, payment and carrier integrations are not implemented. Dashboard sales rows are synthetic. PostgreSQL integration tests are sequential API tests, not a high-concurrency stress/load test. The project is an MVP portfolio deliverable, not production-ready for public or customer data.

@@ -85,7 +85,7 @@ See docs/API.md for endpoint contracts and documented limitations.
 
 ## Limitations
 
-Authentication, tenant/object authorization, customer data retention, background processing, payment, and external carrier integrations are not implemented. The file-preview flow is separate from the persisted operational API. Route tests use SQLite; PostgreSQL migration runs in CI, but production-like concurrent API behavior still requires dedicated PostgreSQL integration tests.
+Authentication, tenant/object authorization, customer data retention, background processing, payment, and external carrier integrations are not implemented. The file-preview flow is separate from the persisted operational API. Route unit tests use SQLite; CI additionally runs dedicated PostgreSQL 16 API integration tests for stock reservation, duplicate references, insufficient stock, cancellation restoration, and delivered-value calculations. High-concurrency load testing remains unimplemented.
 
 ## Future improvements
 
