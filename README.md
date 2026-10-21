@@ -1,66 +1,92 @@
 # DistroPulse
 
-**دستیار تحلیل فروش و گزارش‌گیری برای شرکت‌های پخش و عمده‌فروشی**
+**Distribution Operations, Inventory & Delivery Analytics**
 
-DistroPulse فایل‌های فروش CSV/XLSX را به شاخص‌های مدیریتی تبدیل می‌کند. نسخه فعلی یک MVP اولیه است: رابط فارسی RTL، پردازش محلی فایل در مرورگر، موتور محاسبات قطعی و Backend پایه مبتنی بر FastAPI.
+DistroPulse is a portfolio MVP for small distributors and wholesalers. It combines an in-browser sales-file preview with a FastAPI backend for product catalogue, stock-safe shipment creation, shipment status transitions, and operational analytics.
 
-> اعداد اولیه داشبورد با برچسب «اطلاعات آزمایشی» نمایش داده می‌شوند. فایل‌های بارگذاری‌شده در رابط فعلی داخل مرورگر پردازش می‌شوند و خودکار به سرویس خارجی ارسال یا در پایگاه داده ذخیره نمی‌شوند.
+> **Demo and deployment note:** dashboard sample rows are synthetic. The operational API persists records in PostgreSQL when configured with the provided Compose setup. Backend API tests use isolated in-memory SQLite. Authentication, organization-level access controls, payment integration, and multi-tenant isolation are not implemented; do not expose this demo to real customer data or the public internet.
 
-## اجرا
+## Current capabilities
 
-### پیش‌نیازها
-- Node.js 20+
-- Python 3.11+
+- Responsive English-language dashboard with synthetic sample data and file preview.
+- CSV/XLSX in-memory preview with file-size and row-count limits; preview uploads are not persisted.
+- Product API with SKU uniqueness, filtering, low-stock filtering, and bounded pagination.
+- Shipment API with atomic stock decrement, price snapshot, duplicate-reference protection, and guarded status transitions.
+- Cancellation returns reserved stock; delivered and cancelled shipments are terminal.
+- Operations summary: active products, low-stock products, shipment states, and delivered shipment value.
+- SQLAlchemy 2 models, Alembic migration, PostgreSQL Compose service, OpenAPI docs, and unit/API tests.
 
-### اجرای Frontend
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-سپس آدرس http://localhost:5173 را باز کنید.
+## Quick start (Windows PowerShell)
 
-### اجرای Backend
-از ریشه مخزن:
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[test]"
-uvicorn backend.app.main:app --reload --port 8000
-```
-مستندات تعاملی API: http://localhost:8000/docs
+### Option A — PostgreSQL with Docker
 
-### تست‌ها
-```powershell
-python -m pytest
-cd frontend
-npm test
-npm run build
-```
+Requirements: Docker Desktop, Python 3.11+ for local tooling, and Node.js 20+ for the frontend.
 
-## امکانات پیاده‌سازی‌شده
-- داشبورد فروش، تعداد فاکتورهای یکتا، واحد فروخته‌شده و میانگین مبلغ فاکتور
-- نمودار روند و رتبه‌بندی محصولات بر اساس مبلغ فروش
-- ورود فایل CSV/XLSX، نگاشت اولیه نام ستون‌های فارسی/انگلیسی و گزارش ردیف‌های نامعتبر
-- بررسی اولیه کیفیت داده بدون حذف خودکار ردیف‌ها
-- خلاصه مدیریتی قاعده‌محور، خروجی CSV و چاپ گزارش
-- API پایه برای سلامت سرویس و پیش‌نمایش فایل
-- فایل نمونه CSV و تست‌های ابتدایی
+    Copy-Item .env.example .env
+    docker compose up --build
 
-## محدودیت‌های نسخه فعلی
-- داده‌ها در PostgreSQL ذخیره نمی‌شوند و ورود کاربران/چند‌سازمانی پیاده‌سازی نشده است.
-- API پیش‌نمایش هیچ داده‌ای را به‌صورت دائمی ذخیره نمی‌کند.
-- تاریخ شمسی خام یا مبهم بدون تأیید قالب تبدیل قطعی نمی‌شود.
-- تفسیر مرجوعی، مالیات و تخفیف به معنای واقعی ستون‌های فایل وابسته است.
-- ساخت Frontend باید در CI و محیط دارای دسترسی به npm registry تأیید شود.
+API health: http://localhost:8000/api/v1/health  
+Interactive API docs: http://localhost:8000/docs
 
-## ساختار
-- `frontend/`: React، TypeScript، Vite، نمودارها و ورود فایل
-- `backend/app/`: FastAPI و سرویس پیش‌نمایش CSV/XLSX
-- `backend/tests/`: تست‌های API
-- `docs/API.md`: قرارداد API و وضعیت مسیرها
+### Option B — local Python with SQLite for development only
 
-## مراحل بعدی
-1. تکمیل نگاشت ستون‌ها و جریان تأیید/رد ردیف‌ها.
-2. پیاده‌سازی موتور تحلیل سمت Backend و تطبیق نتایج آن با Frontend.
-3. طراحی PostgreSQL، احراز هویت و مجوزهای سازمانی پیش از استفاده واقعی.
+    py -3.12 -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install --upgrade pip
+    python -m pip install -e ".[test]"
+    $env:DATABASE_URL = "sqlite:///./distropulse.db"
+    alembic upgrade head
+    uvicorn backend.app.main:app --reload --port 8000
+
+### Frontend
+
+In a second PowerShell window:
+
+    cd frontend
+    npm install
+    npm run dev
+
+Open http://localhost:5173. The dashboard defaults to synthetic demo data. Imported files are parsed in the browser and are not submitted to the API.
+
+### Tests and build
+
+From the repository root:
+
+    python -m pip install -e ".[test]"
+    python -m pytest -q
+
+Then:
+
+    cd frontend
+    npm test
+    npm run build
+
+## API overview
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | /api/v1/health | Health check |
+| POST | /api/v1/sales/preview | In-memory file preview |
+| GET / POST | /api/v1/products | List/create products |
+| GET / POST | /api/v1/shipments | List/create shipments |
+| PATCH | /api/v1/shipments/{id}/status | Guarded shipment state transition |
+| GET | /api/v1/analytics/operations | Operational KPI summary |
+
+See docs/API.md for endpoint contracts and documented limitations.
+
+## Operational invariants
+
+- Product stock cannot be negative; the database includes a check constraint.
+- Shipment quantity must be positive.
+- Shipment creation uses a conditional database update so concurrent reservations cannot consume more stock than is available.
+- Shipment references are unique. Retrying a reference returns a conflict and cannot reserve the same stock twice.
+- Cancelling a planned or in-transit shipment returns reserved units inside the same transaction.
+- Delivered value is calculated only for delivered shipments using the unit-price snapshot captured at shipment creation. It is not profit or cash settlement.
+
+## Limitations
+
+Authentication, tenant/object authorization, customer data retention, background processing, payment, and external carrier integrations are not implemented. The file-preview flow is separate from the persisted operational API. Route tests use SQLite; PostgreSQL migration runs in CI, but production-like concurrent API behavior still requires dedicated PostgreSQL integration tests.
+
+## Future improvements
+
+Add PostgreSQL API integration and concurrency tests, authenticated organization permissions, import mapping and reconciliation, audit logging, return workflows, delivery assignment, and a customer-approved pilot.

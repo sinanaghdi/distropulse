@@ -1,27 +1,32 @@
-# قرارداد اولیه API
+# DistroPulse API
 
-داده‌های فایل فقط در حافظه خوانده و پیش‌نمایش می‌شوند. API فعلی رکوردی را به‌طور دائمی ذخیره نمی‌کند.
+Base path: /api/v1. Interactive OpenAPI documentation is at /docs.
 
-## GET /api/v1/health
-نمونه پاسخ:
-```json
-{ "status": "ok", "service": "distropulse-api", "version": "0.1.0" }
-```
+## Health and sales-file preview
 
-## POST /api/v1/sales/preview
-- ورودی: multipart/form-data با فیلد file؛ فایل CSV یا XLSX تا ۵ مگابایت.
-- خروجی: نام فایل، ستون‌ها، تعداد ردیف‌ها، ۲۰ ردیف نخست و persistent_storage=false.
-- خطاها: 400 برای ساختار نامعتبر، 413 برای حجم بیش از سقف.
-- ذخیره‌سازی دائمی انجام نمی‌شود.
+- GET /health returns service name, version and status.
+- POST /sales/preview accepts multipart form field file (CSV or XLSX, at most 5 MiB). It returns headers, row counts and at most 20 preview records. File content is processed in memory and is not persisted. Invalid format returns 400; files over the size limit return 413.
 
-## Endpointهای آتی و پیاده‌سازی‌نشده
-- POST /api/v1/sales/import
-- GET /api/v1/reports/overview
-- GET /api/v1/reports/trends
-- GET /api/v1/reports/products
-- GET /api/v1/reports/customers
-- GET /api/v1/reports/quality
-- POST /api/v1/reports/summary
-- GET /api/v1/exports/report
+## Products
 
-این مسیرها تا زمان پیاده‌سازی واقعی، فعال یا آماده معرفی نمی‌شوند.
+POST /products creates a product with SKU, name, unit price, current stock and reorder threshold. Duplicate SKU returns 409; schema errors return 422.
+
+GET /products?q=paper&low_stock=true&limit=50&offset=0 returns active products with optional search and low-stock filtering. Limit is bounded to 1–100 and offset cannot be negative.
+
+## Shipments and stock
+
+POST /shipments with reference, product_id and positive quantity creates a planned shipment and atomically reserves inventory. Unit price is captured as a snapshot at creation. Duplicate reference returns 409 without a second stock decrement. Missing/inactive products return 404; insufficient stock returns 409.
+
+GET /shipments?status=in_transit&limit=50&offset=0 lists shipment records. Status filters are planned, in_transit, delivered and cancelled.
+
+PATCH /shipments/{id}/status takes a JSON body such as {"status":"in_transit"}.
+
+Allowed transitions: planned → in_transit or cancelled; in_transit → delivered or cancelled. Delivered and cancelled are terminal. Repeating the current status is idempotent. Cancellation releases the reserved units within the same transaction. Invalid transitions return 409; a missing shipment returns 404.
+
+## Operational analytics
+
+GET /analytics/operations returns active product count, low-stock product count, total shipments, in-transit shipments, delivered shipments and delivered shipment value. Delivered value = sum(quantity × unit_price_snapshot) for delivered shipments only. It is not profit, accounting revenue or cash settlement.
+
+## Persistence and security limits
+
+Operational tables are created by Alembic migrations. PostgreSQL is the intended Compose/CI database; route unit tests also use isolated SQLite fixtures. Authentication, tenant isolation and object-level authorization are not implemented. Do not deploy the service publicly or with customer data until those controls and PostgreSQL integration tests have been reviewed.
